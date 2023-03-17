@@ -8,7 +8,8 @@ rule all:
     input:
         expand(base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta", cond = conditions),
         expand("busco/{cond}/run_mammalia_odb10/full_table.tsv", cond = conditions),
-        "busco_summary/busco_figure.png"
+        "busco_summary/busco_figure.png",
+        expand(base_path + "/trinity/{cond}/{cond}_stats.txt", cond = conditions)
 
 rule assmebly:
     input:
@@ -22,7 +23,19 @@ rule assmebly:
         f"{base_path}/conda/trinity.yaml"
     shell:
         """
-        Trinity --seqType fq --left {input.F} --right {input.R} --output {params.outdir} --CPU 6 --max_memory 12G
+        Trinity --seqType fq --left {input.F} --right {input.R} --output {params.outdir} --CPU 4 --max_memory 10G
+        """
+
+rule assembly_stats:
+    input:
+        base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta"
+    params:
+        "~/miniconda3/envs/trinity/opt/trinity-2.13.2/util/TrinityStats.pl"
+    output:
+        base_path + "/trinity/{cond}/{cond}_stats.txt"
+    shell:
+        """
+        perl {params} {input} > {output}
         """
 
 rule busco:
@@ -58,3 +71,4 @@ rule busco_summary:
         cp {input} {params.sum_folder}
         python3 {params.script} -wd {params.sum_folder}
         """
+
