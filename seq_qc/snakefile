@@ -1,0 +1,41 @@
+conditions = glob_wildcards("../sequences/{condition}.fastq").condition
+
+base_path = (os.path.abspath(".."))
+
+rule all:
+    input:
+        expand("fastqc/{cond}_fastqc.{ext}", cond = conditions, ext = ["html", "zip"]),
+        directory("multiqc")
+
+rule fastqc:
+    input:
+        "../sequences/{cond}.fastq"
+    params:
+        "fastqc"
+    output:
+        html = "fastqc/{cond}_fastqc.html",
+        zip = "fastqc/{cond}_fastqc.zip"
+    conda:
+        f"{base_path}/conda/seq_qc.yaml"
+    shell:
+        "fastqc {input} -o {params}"
+
+rule multiqc:
+    input:
+        expand("fastqc/{cond}_fastqc.zip", cond = conditions)
+    output:
+        directory("multiqc")
+    conda:
+        f"{base_path}/conda/seq_qc.yaml"
+    shell:
+        "multiqc {input} -o {output}"
+
+#rule cat:
+#    input:
+#        expand("multiqc/{cond}/multiqc_data/multiqc_general_stats.txt", cond = conditions)
+#    output:
+#        "multiqc/stats_every_strain.txt"
+#    shell:
+#        """
+#        cat {input} | sed '1p;/^Sample/d' | sort -n > {output}
+#        """

@@ -1,0 +1,60 @@
+conditions = glob_wildcards("../sequences/{condition}_1.fastq").condition
+
+base_path = (os.path.abspath(".."))
+
+print(base_path)
+
+rule all:
+    input:
+        expand(base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta", cond = conditions),
+        expand("busco/{cond}/run_mammalia_odb10/full_table.tsv", cond = conditions),
+        "busco_summary/busco_figure.png"
+
+rule assmebly:
+    input:
+        F = base_path + "/trimmed_reads/{cond}_1_trimmed.fastq",
+        R = base_path + "/trimmed_reads/{cond}_2_trimmed.fastq"
+    params:
+        outdir = base_path + "/trinity/{cond}/{cond}_trinity"
+    output:
+        base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta"
+    conda:
+        f"{base_path}/conda/trinity.yaml"
+    shell:
+        """
+        Trinity --seqType fq --left {input.F} --right {input.R} --output {params.outdir} --CPU 6 --max_memory 12G
+        """
+
+rule busco:
+    input:
+        base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta"
+    params:
+         "mammalia_odb10"
+    output:
+        "busco/{cond}/run_mammalia_odb10/full_table.tsv",
+        "busco/{cond}/short_summary.specific.mammalia_odb10.{cond}.txt"
+    conda:
+        f"{base_path}/conda/busco.yaml"
+    shell:
+        """
+        busco -m transcriptome -i {input} -o {wildcards.cond} --out_path busco -l {params} -f
+        """
+
+rule busco_summary:
+    input:
+        expand("busco/{cond}/short_summary.specific.mammalia_odb10.{cond}.txt", cond = conditions)
+    params:
+        sum_folder = "busco_summary",
+        script = ".snakemake/conda/*/bin/generate_plot.py"
+    output:
+        "busco_summary/busco_figure.png",
+        "busco_summary/busco_figure.R"
+    conda:
+        f"{base_path}/conda/busco.yaml"
+    shell:
+        """
+        rm -r {params.sum_folder}
+        mkdir {params.sum_folder}
+        cp {input} {params.sum_folder}
+        python3 {params.script} -wd {params.sum_folder}
+        """
