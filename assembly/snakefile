@@ -23,7 +23,7 @@ rule assmebly:
         f"{base_path}/conda/trinity.yaml"
     shell:
         """
-        Trinity --seqType fq --left {input.F} --right {input.R} --output {params.outdir} --CPU 4 --max_memory 10G
+        Trinity --seqType fq --left {input.F} --right {input.R} --output {params.outdir} --CPU 6 --max_memory 18G
         """
 
 rule assembly_stats:
