@@ -1,0 +1,67 @@
+conditions = glob_wildcards("../sequences/{condition}_1.fastq").condition
+
+base_path = (os.path.abspath(".."))
+
+rule all:
+    input:
+        "assembly_index",
+        expand("counts/{cond}/quant.sf", cond = conditions),
+        "quant_files.list",
+        "Trinity.isoform.counts.matrix"
+
+#-k 31 is recommended for reads 75pb or longer (view salmon documentation)
+#In transcriptome assebly, each contig represent idividual transcripts (usually full length)
+
+rule index:
+    input:
+        base_path + "/trinity/trinity_assembly.Trinity.fasta"
+    output:
+        directory("assembly_index")
+    conda:
+        base_path + "/conda/salmon.yaml"
+    shell:
+        """
+        salmon index -t {input} -i {output} -k 31
+        """
+
+rule quant:
+    input:
+        fasta = base_path + "/trinity/trinity_assembly.Trinity.fasta",
+        F = base_path + "/trimmed_reads/{cond}_1_trimmed.fastq",
+        R = base_path + "/trimmed_reads/{cond}_2_trimmed.fastq",
+        index = "assembly_index"
+    params:
+        "counts/{cond}"
+    output:
+       "counts/{cond}/quant.sf"
+    conda:
+        base_path + "/conda/salmon.yaml"
+    shell:
+        """
+        salmon quant -i {input.index} -l IU -1 {input.F} -2 {input.R} --validateMappings -o {params} -p 8
+        """
+
+rule quant_list:
+    input:
+        expand("counts/{cond}/quant.sf", cond = conditions)
+    output:
+        "quant_files.list"
+    shell:
+        """
+        find {input} -name quant.sf > {output}
+        """
+
+rule exp_matrix:
+    input:
+        "quant_files.list"
+    params:
+        script = "~/miniconda3/envs/trinity/opt/trinity-2.13.2/util/abundance_estimates_to_matrix.pl"
+    output:
+        "Trinity.isoform.counts.matrix"
+    conda:
+        base_path + "/conda/trinity.yaml"
+    shell:
+        """
+        {params.script} --est_method salmon --out_prefix Trinity --name_sample_by_basedir --quant_files {input} --gene_trans_map none
+        """
+
