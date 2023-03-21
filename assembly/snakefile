@@ -6,33 +6,32 @@ print(base_path)
 
 rule all:
     input:
-        expand(base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta", cond = conditions),
-        expand("busco/{cond}/run_mammalia_odb10/full_table.tsv", cond = conditions),
-        "busco_summary/busco_figure.png",
-        expand(base_path + "/trinity/{cond}/{cond}_stats.txt", cond = conditions)
+        base_path + "/trinity/trinity_assembly.Trinity.fasta",
+        base_path + "/trinity/trinity_stats.txt",
+        "busco/trinity/short_summary.specific.mammalia_odb10.trinity.txt",
+        "busco_summary/busco_figure.png"
 
 rule assmebly:
     input:
-        F = base_path + "/trimmed_reads/{cond}_1_trimmed.fastq",
-        R = base_path + "/trimmed_reads/{cond}_2_trimmed.fastq"
+        "files"
     params:
-        outdir = base_path + "/trinity/{cond}/{cond}_trinity"
+        outdir = base_path + "/trinity/trinity_assembly"
     output:
-        base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta"
+        base_path + "/trinity/trinity_assembly.Trinity.fasta"
     conda:
         f"{base_path}/conda/trinity.yaml"
     shell:
         """
-        Trinity --seqType fq --left {input.F} --right {input.R} --output {params.outdir} --CPU 6 --max_memory 18G
+        Trinity --seqType fq --samples_file {input} --output {params.outdir} --CPU 6 --max_memory 8G
         """
 
 rule assembly_stats:
     input:
-        base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta"
+        base_path + "/trinity/trinity_assembly.Trinity.fasta"
     params:
         "~/miniconda3/envs/trinity/opt/trinity-2.13.2/util/TrinityStats.pl"
     output:
-        base_path + "/trinity/{cond}/{cond}_stats.txt"
+        base_path + "/trinity/trinity_stats.txt"
     shell:
         """
         perl {params} {input} > {output}
@@ -40,22 +39,22 @@ rule assembly_stats:
 
 rule busco:
     input:
-        base_path + "/trinity/{cond}/{cond}_trinity.Trinity.fasta"
+        base_path + "/trinity/trinity_assembly.Trinity.fasta"
     params:
          "mammalia_odb10"
     output:
-        "busco/{cond}/run_mammalia_odb10/full_table.tsv",
-        "busco/{cond}/short_summary.specific.mammalia_odb10.{cond}.txt"
+        "busco/trinity/run_mammalia_odb10/full_table.tsv",
+        "busco/trinity/short_summary.specific.mammalia_odb10.trinity.txt"
     conda:
         f"{base_path}/conda/busco.yaml"
     shell:
         """
-        busco -m transcriptome -i {input} -o {wildcards.cond} --out_path busco -l {params} -f
+        busco -m transcriptome -i {input} -o trinity --out_path busco -l {params} -f
         """
 
 rule busco_summary:
     input:
-        expand("busco/{cond}/short_summary.specific.mammalia_odb10.{cond}.txt", cond = conditions)
+        "busco/trinity/short_summary.specific.mammalia_odb10.trinity.txt"
     params:
         sum_folder = "busco_summary",
         script = ".snakemake/conda/*/bin/generate_plot.py"
@@ -71,4 +70,3 @@ rule busco_summary:
         cp {input} {params.sum_folder}
         python3 {params.script} -wd {params.sum_folder}
         """
-
