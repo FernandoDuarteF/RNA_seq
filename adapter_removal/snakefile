@@ -1,0 +1,23 @@
+conditions = glob_wildcards("../sequences/{condition}_1.fastq").condition
+
+base_path = (os.path.abspath(".."))
+
+rule all:
+    input:
+        expand("../trimmed_reads/{cond}_{read}_{trim}.fastq", cond = conditions, read = ["1", "2"], trim = ["trimmed", "trimmed_un"])
+
+rule trimmomatic:
+    input:
+        F = "../sequences/{cond}_1.fastq",
+        R = "../sequences/{cond}_2.fastq",
+        adapter = "../scripts/Sequencing_adaptors.fasta"
+    output:
+        "../trimmed_reads/{cond}_1_trimmed.fastq",
+        "../trimmed_reads/{cond}_1_trimmed_un.fastq",
+        "../trimmed_reads/{cond}_2_trimmed.fastq",
+        "../trimmed_reads/{cond}_2_trimmed_un.fastq"
+    conda:
+        f"{base_path}/conda/trimmomatic.yaml"
+    shell:
+        "trimmomatic PE -threads 8  {input.F} {input.R} "
+        "{output} ILLUMINACLIP:{input.adapter}:2:30:10 MINLEN:40"

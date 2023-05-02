@@ -64,4 +64,3 @@ rule exp_matrix:
         """
         {params.script} --est_method salmon --out_prefix Trinity --name_sample_by_basedir --quant_files {input} --gene_trans_map none
         """
-
